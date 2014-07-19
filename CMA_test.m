@@ -39,9 +39,9 @@ w_end = w(:,end);
 assert(isfinite(w_end(1)), sprintf('Error: CMA: QPSK did not converge mu = %f',mu)); 
 
 %plot before and after scatter plot
-h = scatterplot(w_init'*x,1,0,'r.');
+h = scatterplot(w_init'*x(:,2:end),1,0,'r.');
 hold on;
-scatterplot(w_end'*x,1,0,'b.',h)
+scatterplot(w_end'*x(:,2:end),1,0,'b.',h)
 title('CMA Signal Constellation');
 legend('Before','After');
 
@@ -54,6 +54,44 @@ ylabel('Power (dB)');
 figure;
 plot(abs(err));
 title('CMA Learning Curve');
+xlabel('Iteration');
+ylabel('|Error|');
+
+%% test linearly constrained CMA algorithm
+w_init = 1/(N-1)*ones(N-1,1);
+
+%constraint
+%sensor spacing d = lambda/2
+pz = ((0:N-1) - (N-1)/2) * 0.5;
+%angles in kz space, lambda normalized
+lambda = 1;
+kz = -2*pi./lambda*cos(angles(2));
+%replica vectors
+C = exp(-1i*pz'*kz);
+
+[w, w_c, B, err] = LCCMA(w_init, mu, x, C);
+w_end = w(:,end);
+
+%GSC output
+y = w_c'*x(:,2:end) - w_end'*B'*x(:,2:end);
+
+%plot before and after scatter plot
+h = scatterplot(1/N*ones(1,N)*x(:,2:end),1,0,'r.');
+hold on;
+scatterplot(y,1,0,'b.',h)
+title('LCCMA Signal Constellation');
+legend('Before','After');
+
+%plot beam pattern after convergence
+figure;
+w_gsc = w_c - B*w_end;
+bf_plot(w_gsc, angles);
+title(sprintf('QPSK LCCMA Beam Pattern\n WNG: %2.1f', 1/(w_gsc'*w_gsc)));
+xlabel('Degrees')
+ylabel('Power (dB)');
+figure;
+plot(abs(err));
+title('LCCMA Learning Curve');
 xlabel('Iteration');
 ylabel('|Error|');
 
@@ -77,9 +115,9 @@ w_end = w(:,end);
 assert(isfinite(w_end(1)), 'Error: o-CMA: QPSK did not converge'); 
 
 %plot before and after scatter plot
-h = scatterplot(w_init'*x,1,0,'r.');
+h = scatterplot(w_init'*x(:,2:end),1,0,'r.');
 hold on;
-scatterplot(w_end'*x,1,0,'b.',h)
+scatterplot(w_end'*x(:,2:end),1,0,'b.',h)
 title('o-CMA Signal Constellation');
 legend('Before','After');
 
@@ -92,6 +130,43 @@ ylabel('Power (dB)');
 figure;
 plot(abs(err));
 title('O-CMA Learning Curve');
+xlabel('Iteration');
+ylabel('|Error|');
+
+%% Test Linearly Constrained orthogonalized CMA
+%set initial weights to CBF
+w_init = 1/(N-1)*ones(N-1,1);
+%set step size
+mu = 0.01;
+%set forgetting factor
+alpha = 1-0.985;
+%set initial inverse correlation matrix
+R = diag(ones(N-1,1));
+
+%Run LCo-CMA
+[w, w_c, B, err] = LCoCMA(w_init, R, mu, x, alpha, C);
+w_end = w(:,end);
+
+%GSC output
+y = w_c'*x(:,2:end) - w_end'*B'*x(:,2:end);
+
+%plot before and after scatter plot
+h = scatterplot(1/N*ones(1,N)*x(:,2:end),1,0,'r.');
+hold on;
+scatterplot(y,1,0,'b.',h)
+title('LCO-CMA Signal Constellation');
+legend('Before','After');
+
+%plot beam pattern after convergence
+w_gsc = w_c - B*w_end;
+figure;
+bf_plot(w_gsc, angles);
+title(sprintf('QPSK LCO-CMA Beam Pattern\n WNG: %2.1f', 1/(w_gsc'*w_gsc)));
+xlabel('Degrees')
+ylabel('Power (dB)');
+figure;
+plot(abs(err));
+title('LCO-CMA Learning Curve');
 xlabel('Iteration');
 ylabel('|Error|');
 
